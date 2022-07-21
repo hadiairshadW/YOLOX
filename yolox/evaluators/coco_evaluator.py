@@ -12,7 +12,6 @@ from collections import ChainMap, defaultdict
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
-
 import numpy as np
 
 import torch
@@ -48,12 +47,13 @@ def per_class_AR_table(coco_eval, class_names=COCO_CLASSES, headers=["class", "A
     table = tabulate(
         row_pair, tablefmt="pipe", floatfmt=".3f", headers=table_headers, numalign="left",
     )
-    return table
+    return per_class_AR, table
 
 
 def per_class_AP_table(coco_eval, class_names=COCO_CLASSES, headers=["class", "AP"], colums=6):
     per_class_AP = {}
     precisions = coco_eval.eval["precision"]
+    # scores  = coco_eval.eval["scores"]
     # dimension of precisions: [TxRxKxAxM]
     # precision has dims (iou, recall, cls, area range, max dets)
     assert len(class_names) == precisions.shape[2]
@@ -73,7 +73,7 @@ def per_class_AP_table(coco_eval, class_names=COCO_CLASSES, headers=["class", "A
     table = tabulate(
         row_pair, tablefmt="pipe", floatfmt=".3f", headers=table_headers, numalign="left",
     )
-    return table
+    return per_class_AP, table
 
 
 class COCOEvaluator:
@@ -90,8 +90,8 @@ class COCOEvaluator:
         nmsthre: float,
         num_classes: int,
         testdev: bool = False,
-        per_class_AP: bool = False,
-        per_class_AR: bool = False,
+        per_classAP: bool = False,
+        per_classAR: bool = False,
     ):
         """
         Args:
@@ -110,8 +110,8 @@ class COCOEvaluator:
         self.nmsthre = nmsthre
         self.num_classes = num_classes
         self.testdev = testdev
-        self.per_class_AP = per_class_AP
-        self.per_class_AR = per_class_AR
+        self.per_classAP = per_classAP
+        self.per_classAR = per_classAR
 
     def evaluate(
         self, model, distributed=False, half=False, trt_file=None,
@@ -251,7 +251,7 @@ class COCOEvaluator:
 
     def evaluate_prediction(self, data_dict, statistics):
         if not is_main_process():
-            return 0, 0, None
+            return 0,0,0, None,None,None
 
         logger.info("Evaluate in main process...")
 
@@ -303,12 +303,19 @@ class COCOEvaluator:
             info += redirect_string.getvalue()
             cat_ids = list(cocoGt.cats.keys())
             cat_names = [cocoGt.cats[catId]['name'] for catId in sorted(cat_ids)]
-            if self.per_class_AP:
-                AP_table = per_class_AP_table(cocoEval, class_names=cat_names)
+            if self.per_classAP:
+                AP_dict, AP_table = per_class_AP_table(cocoEval, class_names=cat_names)
                 info += "per class AP:\n" + AP_table + "\n"
-            if self.per_class_AR:
-                AR_table = per_class_AR_table(cocoEval, class_names=cat_names)
+            else:
+                AP_dict = None
+
+            if self.per_classAR:
+                AR_dict, AR_table = per_class_AR_table(cocoEval, class_names=cat_names)
                 info += "per class AR:\n" + AR_table + "\n"
-            return cocoEval.stats[0], cocoEval.stats[1], info
+            else:
+                AR_dict = None
+
+            #sum = plot_confusion_matrix(cocoGt, cocoDt)
+            return cocoEval.stats[0],cocoEval.stats[1],cocoEval.stats[6], AP_dict,AR_dict,info
         else:
-            return 0, 0, info
+            return 0,0,0, None, None, info

@@ -107,6 +107,10 @@ class Exp(BaseExp):
         # nms threshold
         self.nmsthre = 0.65
 
+        #------------------Evaluation Config --------------------#
+        self.per_classAP = False
+        self.per_classAR = False
+
     def get_model(self):
         from yolox.models import YOLOX, YOLOPAFPN, YOLOXHead
 
@@ -309,7 +313,10 @@ class Exp(BaseExp):
             nmsthre=self.nmsthre,
             num_classes=self.num_classes,
             testdev=testdev,
+            per_classAP = self.per_classAP, 
+            per_classAR = self.per_classAR
         )
+        
         return evaluator
 
     def get_trainer(self, args):

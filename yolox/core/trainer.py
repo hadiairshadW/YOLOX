@@ -216,8 +216,13 @@ class Trainer:
 
     def after_epoch(self):
         self.save_ckpt(ckpt_name="latest")
+        
+        # To Log the tain loss 
+        if self.args.logger == "tensorboard":
+                self.tblogger.add_scalar("Loss/train", self.meter["l1_loss"].global_avg, self.epoch )
 
         if (self.epoch + 1) % self.exp.eval_interval == 0:
+            
             all_reduce_norm(self.model)
             self.evaluate_and_save_model()
 
@@ -325,7 +330,7 @@ class Trainer:
                 evalmodel = evalmodel.module
 
         with adjust_status(evalmodel, training=False):
-            (ap50_95, ap50, summary), predictions = self.exp.eval(
+            (ap50_95, ap50,ar50_95, perClass_AP , perClass_AR, summary), predictions = self.exp.eval(  
                 evalmodel, self.evaluator, self.is_distributed, return_outputs=True
             )
 
@@ -336,6 +341,14 @@ class Trainer:
             if self.args.logger == "tensorboard":
                 self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
                 self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAR50_95", ar50_95, self.epoch + 1)
+                if(perClass_AP is not None):
+                    for c  in perClass_AP:
+                        self.tblogger.add_scalar("Per Class Precision/"+c, perClass_AP[c], self.epoch + 1)
+                if(perClass_AR is not None):
+                    for c  in perClass_AR:
+                        self.tblogger.add_scalar("Per Class Recall/"+c, perClass_AR[c], self.epoch + 1)
+
             if self.args.logger == "wandb":
                 self.wandb_logger.log_metrics({
                     "val/COCOAP50": ap50,
