@@ -219,10 +219,13 @@ class Trainer:
         
         # To Log the tain loss 
         if self.args.logger == "tensorboard":
-                self.tblogger.add_scalar("Loss/train", self.meter["l1_loss"].global_avg, self.epoch )
-
+                self.tblogger.add_scalar("Loss/train_totalLoss", self.meter["total_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_l1Loss", self.meter["l1_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_iouLoss", self.meter["iou_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_confLoss", self.meter["conf_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_clsLoss", self.meter["cls_loss"].global_avg, self.epoch +1 )
+                
         if (self.epoch + 1) % self.exp.eval_interval == 0:
-            
             all_reduce_norm(self.model)
             self.evaluate_and_save_model()
 

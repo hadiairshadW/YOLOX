@@ -315,7 +315,21 @@ class COCOEvaluator:
             else:
                 AR_dict = None
 
+            # CocEval Eval Result 
+            # 0:AP at IoU=.50:.05:.95 (primary challenge metric) 
+            # 1:APIoU=.50% AP at IoU=.50 (PASCAL VOC metric) 
+            # 2:APIoU=.75% AP at IoU=.75 (strict metric)
+            # 3:APsmall% AP for small objects: area < 322 
+            # 4:APmedium% AP for medium objects: 322 < area < 962 
+            # 5:APlarge% AP for large objects: area > 962
+            # 6:ARmax=1% AR given 1 detection per image 
+            # 7:ARmax=10% AR given 10 detections per image 
+            # 8:ARmax=100% AR given 100 detections per image
+            # 9:ARsmall% AR for small objects: area < 322
+            # 10:ARmedium% AR for medium objects: 322 < area < 962
+            # 11:ARlarge% AR for large objects: area > 962
+            
             #sum = plot_confusion_matrix(cocoGt, cocoDt)
-            return cocoEval.stats[0],cocoEval.stats[1],cocoEval.stats[6], AP_dict,AR_dict,info
+            return cocoEval.stats[0],cocoEval.stats[1],cocoEval.stats[8], AP_dict,AR_dict,info
         else:
             return 0,0,0, None, None, info
