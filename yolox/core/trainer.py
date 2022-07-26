@@ -59,6 +59,7 @@ class Trainer:
         # metric record
         self.meter = MeterBuffer(window_size=exp.print_interval)
         self.file_name = os.path.join(exp.output_dir, args.experiment_name)
+        self.val_meter = MeterBuffer(window_size=exp.print_interval)
 
         if self.rank == 0:
             os.makedirs(self.file_name, exist_ok=True)
@@ -175,6 +176,11 @@ class Trainer:
         self.evaluator = self.exp.get_evaluator(
             batch_size=self.args.batch_size, is_distributed=self.is_distributed
         )
+        ## getting the val_loader
+        self.val_loader = self.evaluator.dataloader
+        self.val_prefetcher = DataPrefetcher(self.val_loader)
+        self.val_max_iter = len(self.val_loader)
+
         # Tensorboard and Wandb loggers
         if self.rank == 0:
             if self.args.logger == "tensorboard":
@@ -216,15 +222,8 @@ class Trainer:
 
     def after_epoch(self):
         self.save_ckpt(ckpt_name="latest")
-        
-        # To Log the tain loss 
-        if self.args.logger == "tensorboard":
-                self.tblogger.add_scalar("Loss/train_totalLoss", self.meter["total_loss"].global_avg, self.epoch +1 )
-                self.tblogger.add_scalar("Loss/train_l1Loss", self.meter["l1_loss"].global_avg, self.epoch +1 )
-                self.tblogger.add_scalar("Loss/train_iouLoss", self.meter["iou_loss"].global_avg, self.epoch +1 )
-                self.tblogger.add_scalar("Loss/train_confLoss", self.meter["conf_loss"].global_avg, self.epoch +1 )
-                self.tblogger.add_scalar("Loss/train_clsLoss", self.meter["cls_loss"].global_avg, self.epoch +1 )
-                
+        self.Log_loss_info()
+
         if (self.epoch + 1) % self.exp.eval_interval == 0:
             all_reduce_norm(self.model)
             self.evaluate_and_save_model()
@@ -396,3 +395,50 @@ class Trainer:
                         "curr_ap": ap
                     }
                 )
+
+    # New Function To Log and compute Validation Loss
+    # TODO: Check for memory leak 
+    def Log_loss_info(self):
+        logger.info("Evaluating Valdiation Loss")
+        
+        for i, data  in enumerate(self.val_loader):
+            inps, targets ,_,_ = data
+            inps = inps.to(self.data_type)
+            targets = targets.to(self.data_type)
+
+            inps = inps.to(self.device)
+            targets = targets.to(self.device)
+            
+            targets.requires_grad = False
+            inps, targets = self.exp.preprocess(inps, targets, self.input_size)
+        
+            # with torch.cuda.amp.autocast(enabled=self.amp_training):
+                
+            outputs = self.model(inps, targets)
+
+            self.val_meter.update(**outputs )
+            # To clear CUDA memory
+            del inps
+            del targets
+            del outputs
+
+            # outputs = None
+            # inps = None
+            # targets = None
+        
+        if self.args.logger == "tensorboard":
+                self.tblogger.add_scalar("Loss/train_totalLoss", self.meter["total_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_l1Loss", self.meter["l1_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_iouLoss", self.meter["iou_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_confLoss", self.meter["conf_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/train_clsLoss", self.meter["cls_loss"].global_avg, self.epoch +1 )
+                
+                self.tblogger.add_scalar("Loss/val_totalLoss", self.val_meter["total_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/val_l1Loss", self.val_meter["l1_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/val_iouLoss", self.val_meter["iou_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/val_confLoss", self.val_meter["conf_loss"].global_avg, self.epoch +1 )
+                self.tblogger.add_scalar("Loss/val_clsLoss", self.val_meter["cls_loss"].global_avg, self.epoch +1 )
+                
+
+        self.val_meter.clear_meters()
+        logger.info("Valdiation Loss Compute Complete")
