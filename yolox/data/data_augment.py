@@ -17,6 +17,9 @@ import numpy as np
 
 from yolox.utils import xyxy2cxcywh
 
+from object_detection_pipeline.albumentation import Augmentations
+from object_detection_pipeline import visualization
+
 
 def augment_hsv(img, hgain=5, sgain=30, vgain=30):
     hsv_augs = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain]  # random gains
@@ -163,6 +166,7 @@ class TrainTransform:
         self.max_labels = max_labels
         self.flip_prob = flip_prob
         self.hsv_prob = hsv_prob
+        self.yaml_path = '/home/ec2-user/workspace_ahmad/Augmentations/proofminder-pipelines/config.yaml'
 
     def __call__(self, image, targets, input_dim):
         boxes = targets[:, :4].copy()
@@ -183,15 +187,40 @@ class TrainTransform:
         if random.random() < self.hsv_prob:
             augment_hsv(image)
         image_t, boxes = _mirror(image, boxes, self.flip_prob)
+
+###########################################################################################3
+        temp_boxes = xyxy2cxcywh(boxes.copy())
+        mask_b = np.minimum(temp_boxes[:, 2], temp_boxes[:, 3]) > 1  # if min(H, W) > 1, retain the box (return true in mask)
+        boxes = boxes[mask_b]
+        labels = labels[mask_b]
+        # category_id_to_name = {i:str(i) for i in range(80)}
+        augmentation = Augmentations(yaml_file=self.yaml_path)
+        bboxes = boxes.tolist()
+        class_labels = labels.tolist()
+        # visualization.visualize(image, bboxes, class_labels, category_id_to_name)
+        augmentations = augmentation.apply_augmentation_detection(img=image, bboxes=bboxes, category_ids = class_labels)
+        image_t = augmentations["image"]
+        bbox = augmentations["bboxes"]
+        class_label = augmentations["category_ids"]
+        # visualization.visualize(augmented_image, bbox, class_label, category_id_to_name)
+        boxes_t = np.array([list(box) for box in bbox])
+        labels_t = np.array(class_label)
+
         height, width, _ = image_t.shape
         image_t, r_ = preproc(image_t, input_dim)
         # boxes [xyxy] 2 [cx,cy,w,h]
-        boxes = xyxy2cxcywh(boxes)
-        boxes *= r_
+        boxes_t = xyxy2cxcywh(boxes_t)
+        boxes_t *= r_
+################################################################################################
 
-        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
-        boxes_t = boxes[mask_b]
-        labels_t = labels[mask_b]
+        # height, width, _ = image_t.shape
+        # image_t, r_ = preproc(image_t, input_dim)
+        # boxes = xyxy2cxcywh(boxes)
+        # boxes *= r_
+        # mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
+        # boxes_t = boxes[mask_b]
+        # labels_t = labels[mask_b]
+################################################################################################3
 
         if len(boxes_t) == 0:
             image_t, r_o = preproc(image_o, input_dim)

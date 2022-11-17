@@ -12,6 +12,8 @@ from yolox.utils import adjust_box_anns, get_local_rank
 from ..data_augment import random_affine
 from .datasets_wrapper import Dataset
 
+from object_detection_pipeline.albumentation import Augmentations
+from object_detection_pipeline import visualization
 
 def get_mosaic_coordinate(mosaic_image, mosaic_index, xc, yc, w, h, input_h, input_w):
     # TODO update doc
@@ -146,6 +148,8 @@ class MosaicDetection(Dataset):
                 mosaic_img, mosaic_labels = self.mixup(mosaic_img, mosaic_labels, self.input_dim)
             mix_img, padded_labels = self.preproc(mosaic_img, mosaic_labels, self.input_dim)
             img_info = (mix_img.shape[1], mix_img.shape[0])
+
+            # visualization.visualize(np.moveaxis(mix_img, 0, -1).astype(np.uint8), padded_labels[:,1:5].tolist(), padded_labels[:,0].tolist(), {i:str(i) for i in range(120)})
 
             # -----------------------------------------------------------------
             # img_info and img_id are not used for training.

@@ -172,8 +172,9 @@ class Exp(BaseExp):
             mosaic_prob=self.mosaic_prob,
             mixup_prob=self.mixup_prob,
         )
-
+        
         self.dataset = dataset
+        print(dataset.__getitem__((True, 22)))
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()
