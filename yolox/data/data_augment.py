@@ -17,7 +17,6 @@ import numpy as np
 
 from yolox.utils import xyxy2cxcywh
 
-from object_detection_pipeline.albumentation import Augmentations
 from object_detection_pipeline import visualization
 
 
@@ -162,7 +161,8 @@ def preproc(img, input_size, swap=(2, 0, 1)):
 
 
 class TrainTransform:
-    def __init__(self, max_labels=50, flip_prob=0.5, hsv_prob=1.0):
+    def __init__(self, augmentations, max_labels=50, flip_prob=0.5, hsv_prob=1.0):
+        self.augmentations = augmentations
         self.max_labels = max_labels
         self.flip_prob = flip_prob
         self.hsv_prob = hsv_prob
@@ -194,11 +194,10 @@ class TrainTransform:
         boxes = boxes[mask_b]
         labels = labels[mask_b]
         # category_id_to_name = {i:str(i) for i in range(80)}
-        augmentation = Augmentations(yaml_file=self.yaml_path)
         bboxes = boxes.tolist()
         class_labels = labels.tolist()
-        # visualization.visualize(image, bboxes, class_labels, category_id_to_name)
-        augmentations = augmentation.apply_augmentation_detection(img=image, bboxes=bboxes, category_ids = class_labels)
+        # visualization.visualize(image_t, bboxes, class_labels, category_id_to_name)
+        augmentations = self.augmentations.apply_augmentation_detection(img=image_t, bboxes=bboxes, category_ids = class_labels)
         image_t = augmentations["image"]
         bbox = augmentations["bboxes"]
         class_label = augmentations["category_ids"]
@@ -212,7 +211,6 @@ class TrainTransform:
         boxes_t = xyxy2cxcywh(boxes_t)
         boxes_t *= r_
 ################################################################################################
-
         # height, width, _ = image_t.shape
         # image_t, r_ = preproc(image_t, input_dim)
         # boxes = xyxy2cxcywh(boxes)
