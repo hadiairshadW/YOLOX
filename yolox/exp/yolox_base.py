@@ -99,7 +99,7 @@ class Exp(BaseExp):
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # albumentations library's augmentations
-        yaml_path = '/home/ec2-user/workspace_ahmad/Augmentations/proofminder-pipelines/config.yaml'
+        yaml_path = '/home/ec2-user/workspace_ahmad/Augmentations/proofminder-pipelines/config_augmentation.yaml'
         self.augmentations = Augmentations(yaml_file=yaml_path, mode="object detection")
 
         # -----------------  testing config ------------------ #

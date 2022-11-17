@@ -166,7 +166,6 @@ class TrainTransform:
         self.max_labels = max_labels
         self.flip_prob = flip_prob
         self.hsv_prob = hsv_prob
-        self.yaml_path = '/home/ec2-user/workspace_ahmad/Augmentations/proofminder-pipelines/config.yaml'
 
     def __call__(self, image, targets, input_dim):
         boxes = targets[:, :4].copy()
