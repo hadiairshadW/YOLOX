@@ -10,7 +10,6 @@ import torch.distributed as dist
 import torch.nn as nn
 
 from .base_exp import BaseExp
-from misc_pipelines.albumentation import Augmentations
 
 class Exp(BaseExp):
     def __init__(self):
@@ -97,10 +96,6 @@ class Exp(BaseExp):
         self.save_history_ckpt = True
         # name of experiment
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
-
-        # albumentations library's augmentations
-        yaml_path = '/home/ec2-user/workspace_ahmad/Augmentations/proofminder-pipelines/config_augmentation.yaml'
-        self.augmentations = Augmentations(yaml_file=yaml_path, mode="object detection")
 
         # -----------------  testing config ------------------ #
         # output image size during evaluation/test
