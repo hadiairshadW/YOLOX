@@ -176,7 +176,6 @@ class Exp(BaseExp):
         )
         
         self.dataset = dataset
-        print(dataset.__getitem__((True, 22)))
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()

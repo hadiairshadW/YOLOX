@@ -187,7 +187,7 @@ class TrainTransform:
             augment_hsv(image)
         image_t, boxes = _mirror(image, boxes, self.flip_prob)
 
-###########################################################################################3
+        ### Apply albumentations ###
         temp_boxes = xyxy2cxcywh(boxes.copy())
         mask_b = np.minimum(temp_boxes[:, 2], temp_boxes[:, 3]) > 1  # if min(H, W) > 1, retain the box (return true in mask)
         boxes = boxes[mask_b]
@@ -209,15 +209,6 @@ class TrainTransform:
         # boxes [xyxy] 2 [cx,cy,w,h]
         boxes_t = xyxy2cxcywh(boxes_t)
         boxes_t *= r_
-################################################################################################
-        # height, width, _ = image_t.shape
-        # image_t, r_ = preproc(image_t, input_dim)
-        # boxes = xyxy2cxcywh(boxes)
-        # boxes *= r_
-        # mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
-        # boxes_t = boxes[mask_b]
-        # labels_t = labels[mask_b]
-################################################################################################3
 
         if len(boxes_t) == 0:
             image_t, r_o = preproc(image_o, input_dim)
