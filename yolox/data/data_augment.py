@@ -17,8 +17,6 @@ import numpy as np
 
 from yolox.utils import xyxy2cxcywh
 
-from object_detection_pipeline import visualization
-
 
 def augment_hsv(img, hgain=5, sgain=30, vgain=30):
     hsv_augs = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain]  # random gains
