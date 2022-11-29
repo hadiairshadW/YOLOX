@@ -201,9 +201,11 @@ class TrainTransform:
 
         height, width, _ = image_t.shape
         image_t, r_ = preproc(image_t, input_dim)
-        # boxes [xyxy] 2 [cx,cy,w,h]
-        boxes_t = xyxy2cxcywh(boxes_t)
-        boxes_t *= r_
+
+        if len(boxes_t)!=0:
+            # boxes [xyxy] 2 [cx,cy,w,h]
+            boxes_t = xyxy2cxcywh(boxes_t)
+            boxes_t *= r_
 
         if len(boxes_t) == 0:
             image_t, r_o = preproc(image_o, input_dim)
