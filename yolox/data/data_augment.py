@@ -24,16 +24,16 @@ def augment_hsv(img, hgain=5, sgain=30, vgain=30):
     hsv_augs = hsv_augs.astype(np.int16)
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int16)
 
-    img_hsv[..., 0] = (img_hsv[..., 0]  hsv_augs[0]) % 180
-    img_hsv[..., 1] = np.clip(img_hsv[..., 1]  hsv_augs[1], 0, 255)
-    img_hsv[..., 2] = np.clip(img_hsv[..., 2]  hsv_augs[2], 0, 255)
+    img_hsv[..., 0] = (img_hsv[..., 0] + hsv_augs[0]) % 180
+    img_hsv[..., 1] = np.clip(img_hsv[..., 1] + hsv_augs[1], 0, 255)
+    img_hsv[..., 2] = np.clip(img_hsv[..., 2] + hsv_augs[2], 0, 255)
 
     cv2.cvtColor(img_hsv.astype(img.dtype), cv2.COLOR_HSV2BGR, dst=img)  # no return needed
 
 
 def get_aug_params(value, center=0):
     if isinstance(value, float):
-        return random.uniform(center - value, center  value)
+        return random.uniform(center - value, center + value)
     elif len(value) == 2:
         return random.uniform(value[0], value[1])
     else:
@@ -66,8 +66,8 @@ def get_affine_matrix(
     shear_x = math.tan(get_aug_params(shear) * math.pi / 180)
     shear_y = math.tan(get_aug_params(shear) * math.pi / 180)
 
-    M[0] = R[0]  shear_y * R[1]
-    M[1] = R[1]  shear_x * R[0]
+    M[0] = R[0] + shear_y * R[1]
+    M[1] = R[1] + shear_x * R[0]
 
     # Translation
     translation_x = get_aug_params(translate) * twidth  # x translation (pixels)
