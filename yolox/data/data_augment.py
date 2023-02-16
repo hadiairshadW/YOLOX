@@ -24,16 +24,16 @@ def augment_hsv(img, hgain=5, sgain=30, vgain=30):
     hsv_augs = hsv_augs.astype(np.int16)
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.int16)
 
-    img_hsv[..., 0] = (img_hsv[..., 0] + hsv_augs[0]) % 180
-    img_hsv[..., 1] = np.clip(img_hsv[..., 1] + hsv_augs[1], 0, 255)
-    img_hsv[..., 2] = np.clip(img_hsv[..., 2] + hsv_augs[2], 0, 255)
+    img_hsv[..., 0] = (img_hsv[..., 0]  hsv_augs[0]) % 180
+    img_hsv[..., 1] = np.clip(img_hsv[..., 1]  hsv_augs[1], 0, 255)
+    img_hsv[..., 2] = np.clip(img_hsv[..., 2]  hsv_augs[2], 0, 255)
 
     cv2.cvtColor(img_hsv.astype(img.dtype), cv2.COLOR_HSV2BGR, dst=img)  # no return needed
 
 
 def get_aug_params(value, center=0):
     if isinstance(value, float):
-        return random.uniform(center - value, center + value)
+        return random.uniform(center - value, center  value)
     elif len(value) == 2:
         return random.uniform(value[0], value[1])
     else:
@@ -66,8 +66,8 @@ def get_affine_matrix(
     shear_x = math.tan(get_aug_params(shear) * math.pi / 180)
     shear_y = math.tan(get_aug_params(shear) * math.pi / 180)
 
-    M[0] = R[0] + shear_y * R[1]
-    M[1] = R[1] + shear_x * R[0]
+    M[0] = R[0]  shear_y * R[1]
+    M[1] = R[1]  shear_x * R[0]
 
     # Translation
     translation_x = get_aug_params(translate) * twidth  # x translation (pixels)
@@ -242,16 +242,34 @@ class ValTransform:
         data
     """
 
-    def __init__(self, swap=(2, 0, 1), legacy=False):
+    def __init__(self, swap=(2, 0, 1), legacy=False, max_labels=120, return_labels=False):
         self.swap = swap
         self.legacy = legacy
+        self.max_labels = max_labels
+        self.return_labels = return_labels
 
     # assume input is cv2 img for now
-    def __call__(self, img, res, input_size):
-        img, _ = preproc(img, input_size, self.swap)
-        if self.legacy:
-            img = img[::-1, :, :].copy()
-            img /= 255.0
-            img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
-            img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
-        return img, np.zeros((1, 5))
+    def __call__(self, image, targets, input_size):
+        if self.return_labels is True:
+            boxes = targets[:, :4].copy()
+            labels = targets[:, 4].copy()
+            if len(boxes) == 0:
+                targets = np.zeros((self.max_labels, 5), dtype=np.float32)
+                image, r_o = preproc(image, input_size)
+                return image, targets
+
+            image_o = image.copy()
+            targets_o = targets.copy()
+            boxes_o = targets_o[:, :4]
+            labels_o = targets_o[:, 4]
+            # bbox_o: [xyxy] to [c_x,c_y,w,h]
+            boxes_o = xyxy2cxcywh(boxes_o)
+            image_t = image.copy()
+            image_t, r_ = preproc(image_t, input_size)
+            # boxes [xyxy] 2 [cx,cy,w,h]
+            boxes = xyxy2cxcywh(boxes)
+            boxes *= r_
+
+                img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
+                img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
+            return img, np.zeros((1, 5))
