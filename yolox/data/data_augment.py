@@ -247,7 +247,6 @@ class ValTransform:
         self.legacy = legacy
         self.max_labels = max_labels
         self.return_labels = return_labels
-
     # assume input is cv2 img for now
     def __call__(self, image, targets, input_size):
         if self.return_labels is True:
@@ -270,6 +269,31 @@ class ValTransform:
             boxes = xyxy2cxcywh(boxes)
             boxes *= r_
 
+            mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
+            boxes_t = boxes[mask_b]
+            labels_t = labels[mask_b]
+
+            if len(boxes_t) == 0:
+                image_t, r_o = preproc(image_o, input_size)
+                boxes_o *= r_o
+                boxes_t = boxes_o
+                labels_t = labels_o
+
+            labels_t = np.expand_dims(labels_t, 1)
+
+            targets_t = np.hstack((labels_t, boxes_t))
+            padded_labels = np.zeros((self.max_labels, 5))
+            padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+                : self.max_labels
+            ]
+            padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+            return image_t, padded_labels
+
+        else:
+            img, _ = preproc(image, input_size, self.swap)
+            if self.legacy:
+                img = img[::-1, :, :].copy()
+                img /= 255.0
                 img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
                 img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
             return img, np.zeros((1, 5))
