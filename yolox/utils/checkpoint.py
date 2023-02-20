@@ -40,4 +40,4 @@ def save_checkpoint(state, is_best, save_dir, model_name=""):
     torch.save(state, filename)
     if is_best:
         best_filename = os.path.join(save_dir, "best_ckpt.pth")
-        shutil.copyfile(filename, best_filename)
+        torch.save(state, best_filename)
