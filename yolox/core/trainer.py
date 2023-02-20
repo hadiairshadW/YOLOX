@@ -147,6 +147,7 @@ class Trainer:
 
         # data related init
         self.no_aug = self.start_epoch >= self.max_epoch - self.exp.no_aug_epochs
+
         self.train_loader = self.exp.get_data_loader(
             batch_size=self.args.batch_size,
             is_distributed=self.is_distributed,
@@ -177,7 +178,11 @@ class Trainer:
             batch_size=self.args.batch_size, is_distributed=self.is_distributed
         )
         ## getting the val_loader
-        self.val_loader = self.evaluator.dataloader
+        self.val_loader = self.exp.get_eval_loader(
+        batch_size=self.args.batch_size, 
+        is_distributed=self.is_distributed, 
+        max_labels=120, return_labels=True
+        )
         self.val_prefetcher = DataPrefetcher(self.val_loader)
         self.val_max_iter = len(self.val_loader)
 

@@ -159,7 +159,8 @@ def preproc(img, input_size, swap=(2, 0, 1)):
 
 
 class TrainTransform:
-    def __init__(self, max_labels=50, flip_prob=0.5, hsv_prob=1.0):
+    def __init__(self, augmentations, max_labels=50, flip_prob=0.5, hsv_prob=1.0):
+        self.augmentations = augmentations
         self.max_labels = max_labels
         self.flip_prob = flip_prob
         self.hsv_prob = hsv_prob
@@ -183,15 +184,28 @@ class TrainTransform:
         if random.random() < self.hsv_prob:
             augment_hsv(image)
         image_t, boxes = _mirror(image, boxes, self.flip_prob)
+
+        ### Apply albumentations ###
+        temp_boxes = xyxy2cxcywh(boxes.copy())
+        mask_b = np.minimum(temp_boxes[:, 2], temp_boxes[:, 3]) > 1  # if min(H, W) > 1, retain the box (return true in mask)
+        boxes = boxes[mask_b]
+        labels = labels[mask_b]
+        bboxes = boxes.tolist()
+        class_labels = labels.tolist()
+        augmentations = self.augmentations.apply_augmentation_detection(img=image_t, bboxes=bboxes, category_ids = class_labels)
+        image_t = augmentations["image"]
+        bbox = augmentations["bboxes"]
+        class_label = augmentations["category_ids"]
+        boxes_t = np.array([list(box) for box in bbox])
+        labels_t = np.array(class_label)
+
         height, width, _ = image_t.shape
         image_t, r_ = preproc(image_t, input_dim)
-        # boxes [xyxy] 2 [cx,cy,w,h]
-        boxes = xyxy2cxcywh(boxes)
-        boxes *= r_
 
-        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
-        boxes_t = boxes[mask_b]
-        labels_t = labels[mask_b]
+        if len(boxes_t)!=0:
+            # boxes [xyxy] 2 [cx,cy,w,h]
+            boxes_t = xyxy2cxcywh(boxes_t)
+            boxes_t *= r_
 
         if len(boxes_t) == 0:
             image_t, r_o = preproc(image_o, input_dim)
@@ -228,16 +242,58 @@ class ValTransform:
         data
     """
 
-    def __init__(self, swap=(2, 0, 1), legacy=False):
+    def __init__(self, swap=(2, 0, 1), legacy=False, max_labels=120, return_labels=False):
         self.swap = swap
         self.legacy = legacy
-
+        self.max_labels = max_labels
+        self.return_labels = return_labels
     # assume input is cv2 img for now
-    def __call__(self, img, res, input_size):
-        img, _ = preproc(img, input_size, self.swap)
-        if self.legacy:
-            img = img[::-1, :, :].copy()
-            img /= 255.0
-            img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
-            img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
-        return img, np.zeros((1, 5))
+    def __call__(self, image, targets, input_size):
+        if self.return_labels is True:
+            boxes = targets[:, :4].copy()
+            labels = targets[:, 4].copy()
+            if len(boxes) == 0:
+                targets = np.zeros((self.max_labels, 5), dtype=np.float32)
+                image, r_o = preproc(image, input_size)
+                return image, targets
+
+            image_o = image.copy()
+            targets_o = targets.copy()
+            boxes_o = targets_o[:, :4]
+            labels_o = targets_o[:, 4]
+            # bbox_o: [xyxy] to [c_x,c_y,w,h]
+            boxes_o = xyxy2cxcywh(boxes_o)
+            image_t = image.copy()
+            image_t, r_ = preproc(image_t, input_size)
+            # boxes [xyxy] 2 [cx,cy,w,h]
+            boxes = xyxy2cxcywh(boxes)
+            boxes *= r_
+
+            mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
+            boxes_t = boxes[mask_b]
+            labels_t = labels[mask_b]
+
+            if len(boxes_t) == 0:
+                image_t, r_o = preproc(image_o, input_size)
+                boxes_o *= r_o
+                boxes_t = boxes_o
+                labels_t = labels_o
+
+            labels_t = np.expand_dims(labels_t, 1)
+
+            targets_t = np.hstack((labels_t, boxes_t))
+            padded_labels = np.zeros((self.max_labels, 5))
+            padded_labels[range(len(targets_t))[: self.max_labels]] = targets_t[
+                : self.max_labels
+            ]
+            padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
+            return image_t, padded_labels
+
+        else:
+            img, _ = preproc(image, input_size, self.swap)
+            if self.legacy:
+                img = img[::-1, :, :].copy()
+                img /= 255.0
+                img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
+                img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
+            return img, np.zeros((1, 5))

@@ -11,7 +11,6 @@ import torch.nn as nn
 
 from .base_exp import BaseExp
 
-
 class Exp(BaseExp):
     def __init__(self):
         super().__init__()
@@ -149,9 +148,11 @@ class Exp(BaseExp):
                 json_file=self.train_ann,
                 img_size=self.input_size,
                 preproc=TrainTransform(
+                    augmentations=self.augmentations,
                     max_labels=50,
                     flip_prob=self.flip_prob,
-                    hsv_prob=self.hsv_prob),
+                    hsv_prob=self.hsv_prob
+                    ),
                 cache=cache_img,
             )
 
@@ -160,6 +161,7 @@ class Exp(BaseExp):
             mosaic=not no_aug,
             img_size=self.input_size,
             preproc=TrainTransform(
+                augmentations=self.augmentations,
                 max_labels=120,
                 flip_prob=self.flip_prob,
                 hsv_prob=self.hsv_prob),
@@ -172,7 +174,7 @@ class Exp(BaseExp):
             mosaic_prob=self.mosaic_prob,
             mixup_prob=self.mixup_prob,
         )
-
+        
         self.dataset = dataset
 
         if is_distributed:
@@ -273,7 +275,9 @@ class Exp(BaseExp):
         )
         return scheduler
 
-    def get_eval_loader(self, batch_size, is_distributed, testdev=False, legacy=False):
+    def get_eval_loader(
+        self, batch_size, is_distributed, testdev=False, legacy=False, max_labels=50, 
+        return_labels=False):
         from yolox.data import COCODataset, ValTransform
 
         valdataset = COCODataset(
@@ -281,7 +285,7 @@ class Exp(BaseExp):
             json_file=self.val_ann if not testdev else self.test_ann,
             name="val2017" if not testdev else "test2017",
             img_size=self.test_size,
-            preproc=ValTransform(legacy=legacy),
+            preproc=ValTransform(legacy=legacy, max_labels=max_labels, return_labels=return_labels),
         )
 
         if is_distributed:
