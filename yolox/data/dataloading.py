@@ -107,7 +107,7 @@ def list_collate(batch):
 
 
 def worker_init_reset_seed(worker_id):
-    seed = worker_id
+    seed = torch.initial_seed() % 2**32
+    np.random.seed(seed)
     random.seed(seed)
     torch.set_rng_state(torch.manual_seed(seed).get_state())
-    np.random.seed(seed)
